@@ -1,2 +1,688 @@
-r=2
-jorge el mejor
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Chemometrics\n",
+    "<br>\n",
+    "**Julien Wist / 2017 / Universidad del Valle**\n",
+    "<br>\n",
+    "**Andrés Bernal / 2017 / ???**\n",
+    "\n",
+    "An up-to-date version of this notebook can be found here: https://github.com/jwist/chemometrics/"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "options(repr.plot.width=4, repr.plot.height=4) # change these setting to plot larger figures"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Loading required package: lattice\n",
+      "Loading required package: ggplot2\n"
+     ]
+    }
+   ],
+   "source": [
+    "library(caret)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## diagnostic test\n",
+    "\n",
+    "We create a testset as described in Altman, D.G., Bland, J.M. (1994) “Diagnostic tests 1: sensitivity and specificity,” British Medical Journal, vol 308, 1552. and Altman, D.G., Bland, J.M. (1994) “Diagnostic tests 2: predictive values,” British Medical Journal, vol 309, 102.\n",
+    "\n",
+    "The truth is that 258 persons out of 344 have abnormal livers. Thus, the prevalence of the disease is 258/344=0.75."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<dl class=dl-horizontal>\n",
+       "\t<dt>abnormal</dt>\n",
+       "\t\t<dd>304</dd>\n",
+       "\t<dt>normal</dt>\n",
+       "\t\t<dd>40</dd>\n",
+       "</dl>\n"
+      ],
+      "text/latex": [
+       "\\begin{description*}\n",
+       "\\item[abnormal] 304\n",
+       "\\item[normal] 40\n",
+       "\\end{description*}\n"
+      ],
+      "text/markdown": [
+       "abnormal\n",
+       ":   304normal\n",
+       ":   40\n",
+       "\n"
+      ],
+      "text/plain": [
+       "abnormal   normal \n",
+       "     304       40 "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.883720930232558"
+      ],
+      "text/latex": [
+       "0.883720930232558"
+      ],
+      "text/markdown": [
+       "0.883720930232558"
+      ],
+      "text/plain": [
+       "[1] 0.8837209"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "N <- 344\n",
+    "neg <- 40 #86\n",
+    "lvs <- c(\"normal\", \"abnormal\")\n",
+    "truth <- factor(rep(lvs, times = c(neg, N-neg)),\n",
+    "                levels = rev(lvs))\n",
+    "summary(truth)\n",
+    "\n",
+    "prevalence <- sum(truth == \"abnormal\") / length(truth)\n",
+    "prevalence"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "So the odds of finding an abnormal liver (prior to the test) is:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "7.6"
+      ],
+      "text/latex": [
+       "7.6"
+      ],
+      "text/markdown": [
+       "7.6"
+      ],
+      "text/plain": [
+       "[1] 7.6"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "prevalence / (1 - prevalence)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "A test has been developed that gives the following results:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<dl class=dl-horizontal>\n",
+       "\t<dt>abnormal</dt>\n",
+       "\t\t<dd>263</dd>\n",
+       "\t<dt>normal</dt>\n",
+       "\t\t<dd>81</dd>\n",
+       "</dl>\n"
+      ],
+      "text/latex": [
+       "\\begin{description*}\n",
+       "\\item[abnormal] 263\n",
+       "\\item[normal] 81\n",
+       "\\end{description*}\n"
+      ],
+      "text/markdown": [
+       "abnormal\n",
+       ":   263normal\n",
+       ":   81\n",
+       "\n"
+      ],
+      "text/plain": [
+       "abnormal   normal \n",
+       "     263       81 "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "pred <- factor(\n",
+    "               c(\n",
+    "                 rep(lvs, times = c(54, 32)),\n",
+    "                 rep(lvs, times = c(27, 231))),               \n",
+    "               levels = rev(lvs))\n",
+    "summary(pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<dl class=dl-horizontal>\n",
+       "\t<dt>abnormal</dt>\n",
+       "\t\t<dd>299</dd>\n",
+       "\t<dt>normal</dt>\n",
+       "\t\t<dd>45</dd>\n",
+       "</dl>\n"
+      ],
+      "text/latex": [
+       "\\begin{description*}\n",
+       "\\item[abnormal] 299\n",
+       "\\item[normal] 45\n",
+       "\\end{description*}\n"
+      ],
+      "text/markdown": [
+       "abnormal\n",
+       ":   299normal\n",
+       ":   45\n",
+       "\n"
+      ],
+      "text/plain": [
+       "abnormal   normal \n",
+       "     299       45 "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "pred <- factor(\n",
+    "               c(\n",
+    "                 rep(lvs, times = c(neg-12, 12)),\n",
+    "                 rep(lvs, times = c(17, N-neg-17))),               \n",
+    "               levels = rev(lvs))\n",
+    "summary(pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "By comparing both vector we can build a confusion matrix easily."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "          truth\n",
+       "pred       abnormal normal\n",
+       "  abnormal      287     12\n",
+       "  normal         17     28"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "xtab <- table(pred, truth)\n",
+    "xtab"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "So there are 231+27=258 true positives (abnormal) and 32+54=86 true negatives (normal). Thus, there are 231/258=0.9 and 54/86=0.63 that were correctly classified. The first number is called sensitivity, while the second is called specificity."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "0.94"
+      ],
+      "text/latex": [
+       "0.94"
+      ],
+      "text/markdown": [
+       "0.94"
+      ],
+      "text/plain": [
+       "[1] 0.94"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.7"
+      ],
+      "text/latex": [
+       "0.7"
+      ],
+      "text/markdown": [
+       "0.7"
+      ],
+      "text/plain": [
+       "[1] 0.7"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "round( S <- sensitivity(pred, truth), 2)\n",
+    "round( Sp <- specificity(xtab), 2 )"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "But if often happens that only the results of the test are known. Therefore we can compute the proportion of the positive test (abnormal) that are actually abnormal."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "0.96"
+      ],
+      "text/latex": [
+       "0.96"
+      ],
+      "text/markdown": [
+       "0.96"
+      ],
+      "text/plain": [
+       "[1] 0.96"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.878326996197719"
+      ],
+      "text/latex": [
+       "0.878326996197719"
+      ],
+      "text/markdown": [
+       "0.878326996197719"
+      ],
+      "text/plain": [
+       "[1] 0.878327"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.62"
+      ],
+      "text/latex": [
+       "0.62"
+      ],
+      "text/markdown": [
+       "0.62"
+      ],
+      "text/plain": [
+       "[1] 0.62"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.666666666666667"
+      ],
+      "text/latex": [
+       "0.666666666666667"
+      ],
+      "text/markdown": [
+       "0.666666666666667"
+      ],
+      "text/plain": [
+       "[1] 0.6666667"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "round(PPV <- posPredValue(pred, truth),2)\n",
+    "231/263\n",
+    "\n",
+    "round(NPV <- negPredValue(xtab),2)\n",
+    "54/81"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "23.92"
+      ],
+      "text/latex": [
+       "23.92"
+      ],
+      "text/markdown": [
+       "23.92"
+      ],
+      "text/plain": [
+       "[1] 23.92"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "7.6"
+      ],
+      "text/latex": [
+       "7.6"
+      ],
+      "text/markdown": [
+       "7.6"
+      ],
+      "text/plain": [
+       "[1] 7.6"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "3.14692982456141"
+      ],
+      "text/latex": [
+       "3.14692982456141"
+      ],
+      "text/markdown": [
+       "3.14692982456141"
+      ],
+      "text/plain": [
+       "[1] 3.14693"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "3.1469298245614"
+      ],
+      "text/latex": [
+       "3.1469298245614"
+      ],
+      "text/markdown": [
+       "3.1469298245614"
+      ],
+      "text/plain": [
+       "[1] 3.14693"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "round( posteriorOdds <- PPV / (1 - PPV), 2 )\n",
+    "priorOdds <- prevalence / (1 - prevalence)\n",
+    "priorOdds\n",
+    "posteriorOdds / priorOdds\n",
+    "\n",
+    "likelyhoodRatio <- sensitivity(xtab) / (1-specificity(xtab))\n",
+    "likelyhoodRatio"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "0.317725752508361"
+      ],
+      "text/latex": [
+       "0.317725752508361"
+      ],
+      "text/markdown": [
+       "0.317725752508361"
+      ],
+      "text/plain": [
+       "[1] 0.3177258"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "7.6/23.92"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The test is usefull because the posterior odds are higher than the prior odds, the multiplication of prior odds by likelyhood ration gives the posterior odds. A lot of these values can be calculated with a single command."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Confusion Matrix and Statistics\n",
+       "\n",
+       "          Reference\n",
+       "Prediction abnormal normal\n",
+       "  abnormal      287     12\n",
+       "  normal         17     28\n",
+       "                                          \n",
+       "               Accuracy : 0.9157          \n",
+       "                 95% CI : (0.8812, 0.9428)\n",
+       "    No Information Rate : 0.8837          \n",
+       "    P-Value [Acc > NIR] : 0.03444         \n",
+       "                                          \n",
+       "                  Kappa : 0.6109          \n",
+       " Mcnemar's Test P-Value : 0.45761         \n",
+       "                                          \n",
+       "            Sensitivity : 0.9441          \n",
+       "            Specificity : 0.7000          \n",
+       "         Pos Pred Value : 0.9599          \n",
+       "         Neg Pred Value : 0.6222          \n",
+       "             Prevalence : 0.8837          \n",
+       "         Detection Rate : 0.8343          \n",
+       "   Detection Prevalence : 0.8692          \n",
+       "      Balanced Accuracy : 0.8220          \n",
+       "                                          \n",
+       "       'Positive' Class : abnormal        \n",
+       "                                          "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "confusionMatrix(pred,truth)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "A very important conclusion to keep in mind is that the PPV (and the NPV) will change if the prevalence is modified. PPV and NPV are computed only from the results of the test. If prevalence is rare, then we can more easily trust our negative to be indeed negative, and it becomes more difficult to trust in our positive results."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "1.05"
+      ],
+      "text/latex": [
+       "1.05"
+      ],
+      "text/markdown": [
+       "1.05"
+      ],
+      "text/plain": [
+       "[1] 1.05"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "3.1469298245614"
+      ],
+      "text/latex": [
+       "3.1469298245614"
+      ],
+      "text/markdown": [
+       "3.1469298245614"
+      ],
+      "text/plain": [
+       "[1] 3.14693"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "0.333333333333333"
+      ],
+      "text/latex": [
+       "0.333333333333333"
+      ],
+      "text/markdown": [
+       "0.333333333333333"
+      ],
+      "text/plain": [
+       "[1] 0.3333333"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "prevalence <- 0.25\n",
+    "PPV <- posPredValue(pred, truth, prevalence=0.25)\n",
+    "round( posteriorOdds <- PPV / (1 - PPV), 2 )\n",
+    "priorOdds <- prevalence / (1 - prevalence)\n",
+    "posteriorOdds / priorOdds\n",
+    "priorOdds"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "image/png": 
